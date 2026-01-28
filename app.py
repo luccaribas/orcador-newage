@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # --- BANCO DE DADOS FERNANDEZ 2024 (TODAS AS 31 CHAPAS) ---
-# Preços e gramaturas extraídos da sua planilha oficial
+# Extraído da sua planilha oficial
 BASE_MATERIAIS = [
     # ONDA B
     {"id": "FK1L-B", "onda": "B", "tipo": "Reciclado", "coluna": "3.5", "m2": 2.956, "gram": 360},
@@ -67,17 +67,21 @@ with st.expander("📝 Configurar Novo Item", expanded=True):
 
 # --- MOTOR DE CÁLCULO INDIVIDUAL (Lógica Prinect) ---
 d_map = {"B": 3.0, "C": 4.0, "BC": 6.5, "E (Micro)": 1.5, "EB (Dupla)": 4.5}
-$d$ = d_map.get(onda_sel, 3.0)
+d = d_map.get(onda_sel, 3.0)
 
-# Lógica Individualizada
+# Lógica Individualizada conforme arquivos .evr
 if modelo == "0200":
-    bL, bW = (2*L + 2*W + 35), (H + (W/2) + $d$)
+    bL = (2 * L) + (2 * W) + 35
+    bW = H + (W / 2) + d
 elif modelo == "0201":
-    bL, bW = (2*L + 2*W + 35), (H + W + $d$)
+    bL = (2 * L) + (2 * W) + 35
+    bW = H + W + d
 elif modelo == "0204":
-    bL, bW = (2*L + 2*W + 35), (H + 2*W + $d$)
+    bL = (2 * L) + (2 * W) + 35
+    bW = H + (2 * W) + d
 elif modelo == "0427":
-    bL, bW = (L + 4*H + 6*$d$), (2*W + 3*H + 20)
+    bL = L + (4 * H) + (6 * d)
+    bW = (2 * W) + (3 * H) + 20
 else: # Acessórios 0900
     bL, bW = L, W
 
