@@ -1,9 +1,8 @@
 import streamlit as st
 
 # =========================================================
-# 1. ENGENHARIA NEW AGE (PARÂMETROS EXTRAÍDOS DO PRINECT)
+# 1. PARÂMETROS TÉCNICOS (ENGENHARIA PRINECT)
 # =========================================================
-# d = Espessura da chapa | gl = Orelha de colagem (Glue Flap)
 CONFIG_TECNICA = {
     "Onda B":           {"d": 3.0, "gl": 30},
     "Onda C":           {"d": 4.0, "gl": 30},
@@ -13,122 +12,110 @@ CONFIG_TECNICA = {
 }
 
 # =========================================================
-# 2. TABELA COMPLETA FERNANDEZ 2024 (31 OPÇÕES)
+# 2. BANCO DE DADOS FERNANDEZ (ONDA -> QUALIDADE -> COLUNA)
 # =========================================================
-# Dados extraídos diretamente da planilha "Tabela de especificação NOVA 2024"
-TABELA_FERNANDEZ = {
-    # --- ONDA B ---
-    "FK1L-B (Reciclado)": {"onda": "Onda B", "preco": 2.956},
-    "FK2S-B (Reciclado)": {"onda": "Onda B", "preco": 2.770},
-    "FK2-B (Reciclado)":  {"onda": "Onda B", "preco": 3.143},
-    "FK2E1-B (Reciclado)": {"onda": "Onda B", "preco": 3.473},
-    "FK2E3-B (Reciclado)": {"onda": "Onda B", "preco": 4.011},
-    "FK2E4-B (Reciclado)": {"onda": "Onda B", "preco": 4.342},
-    "KMKS-B (Kraft)":     {"onda": "Onda B", "preco": 2.948},
-    "KMK-B (Kraft)":      {"onda": "Onda B", "preco": 3.344},
-    "BMC-B (Branco)":     {"onda": "Onda B", "preco": 3.793},
-    
-    # --- ONDA C ---
-    "FK1L-C (Reciclado)": {"onda": "Onda C", "preco": 3.038},
-    "FK2S-C (Reciclado)": {"onda": "Onda C", "preco": 2.853},
-    "FK2-C (Reciclado)":  {"onda": "Onda C", "preco": 3.225},
-    "FK2E1-C (Reciclado)": {"onda": "Onda C", "preco": 3.556},
-    "FK2E3-C (Reciclado)": {"onda": "Onda C", "preco": 4.094},
-    "FK2E4-C (Reciclado)": {"onda": "Onda C", "preco": 4.424},
-    "KMKS-C (Kraft)":     {"onda": "Onda C", "preco": 3.036},
-    "KMK-C (Kraft)":      {"onda": "Onda C", "preco": 3.432},
-    "BMC-C (Branco)":     {"onda": "Onda C", "preco": 3.885},
-    
-    # --- ONDA BC (DUPLA) ---
-    "FK1L-BC (Reciclado)": {"onda": "Onda BC (Dupla)", "preco": 5.008},
-    "FK2S-BC (Reciclado)": {"onda": "Onda BC (Dupla)", "preco": 4.673},
-    "FK2L-BC (Reciclado)": {"onda": "Onda BC (Dupla)", "preco": 5.127},
-    "FK2-BC (Reciclado)":  {"onda": "Onda BC (Dupla)", "preco": 5.458},
-    "FK2E1-BC (Reciclado)": {"onda": "Onda BC (Dupla)", "preco": 6.120},
-    "FK2E3-BC (Reciclado)": {"onda": "Onda BC (Dupla)", "preco": 6.699},
-    "KMKS-BC (Kraft)":     {"onda": "Onda BC (Dupla)", "preco": 5.324},
-    "KMK-BC (Kraft)":      {"onda": "Onda BC (Dupla)", "preco": 5.808},
-    "BMC-BC (Branco)":     {"onda": "Onda BC (Dupla)", "preco": 6.383},
-
-    # --- ONDA E / EB ---
-    "FK1L-E (Micro)":     {"onda": "Onda E (Micro)", "preco": 2.961},
-    "FK2L-E (Micro)":     {"onda": "Onda E (Micro)", "preco": 3.067},
-    "FK1L-EB (Dupla)":    {"onda": "Onda EB (Dupla)", "preco": 5.034},
-    "FK2L-EB (Dupla)":    {"onda": "Onda EB (Dupla)", "preco": 5.155}
+DADOS_MATERIAIS = {
+    "Onda B": {
+        "FK1L-B": {"coluna": 3.5, "preco": 2.956},
+        "FK2S-B": {"coluna": 4.0, "preco": 2.770},
+        "FK2-B":  {"coluna": 5.0, "preco": 3.143},
+        "FK2E1-B": {"coluna": 5.5, "preco": 3.473},
+        "FK2E3-B": {"coluna": 6.0, "preco": 4.011},
+        "FK2E4-B": {"coluna": 7.0, "preco": 4.342},
+        "KMKS-B": {"coluna": 4.0, "preco": 2.948},
+        "KMK-B":  {"coluna": 5.0, "preco": 3.344},
+        "BMC-B":  {"coluna": 5.0, "preco": 3.793},
+    },
+    "Onda C": {
+        "FK1L-C": {"coluna": 3.5, "preco": 3.038},
+        "FK2S-C": {"coluna": 4.0, "preco": 2.853},
+        "FK2-C":  {"coluna": 4.8, "preco": 3.225},
+        "FK2E1-C": {"coluna": 5.0, "preco": 3.556},
+        "FK2E3-C": {"coluna": 5.5, "preco": 4.094},
+        "FK2E4-C": {"coluna": 6.0, "preco": 4.424},
+        "KMKS-C": {"coluna": 4.0, "preco": 3.036},
+        "KMK-C":  {"coluna": 5.0, "preco": 3.432},
+        "BMC-C":  {"coluna": 5.0, "preco": 3.885},
+    },
+    "Onda BC (Dupla)": {
+        "FK1L-BC": {"coluna": 7.0, "preco": 5.008},
+        "FK2S-BC": {"coluna": 7.5, "preco": 4.673},
+        "FK2L-BC": {"coluna": 8.0, "preco": 5.127},
+        "FK2-BC":  {"coluna": 8.0, "preco": 5.458},
+        "FK2E1-BC": {"coluna": 8.5, "preco": 6.120},
+        "FK2E3-BC": {"coluna": 9.5, "preco": 6.699},
+        "KMKS-BC": {"coluna": 8.0, "preco": 5.324},
+        "KMK-BC":  {"coluna": 8.0, "preco": 5.808},
+        "BMC-BC":  {"coluna": 8.0, "preco": 6.383},
+    },
+    "Onda E (Micro)": {
+        "FK1L-E": {"coluna": 3.5, "preco": 2.961},
+        "FK2L-E": {"coluna": 4.0, "preco": 3.067},
+    },
+    "Onda EB (Dupla)": {
+        "FK1L-EB": {"coluna": 7.5, "preco": 5.034},
+        "FK2L-EB": {"coluna": 8.0, "preco": 5.155},
+    }
 }
 
 # =========================================================
-# 3. INTERFACE STREAMLIT
+# 3. INTERFACE E LÓGICA
 # =========================================================
-st.set_page_config(page_title="New Age Embalagens - Orçador Master", layout="wide")
+st.set_page_config(page_title="New Age - Orçador Técnico", layout="wide")
+st.title("📦 Sistema de Orçamentos New Age Embalagens")
 
-st.title("📦 Orçador Técnico New Age Embalagens")
-st.markdown("---")
-
-# --- MENU DE SELEÇÃO ---
 with st.sidebar:
-    st.header("1. Configurações")
-    chapa_nome = st.selectbox("Selecione a Chapa (Fernandez 2024)", list(TABELA_FERNANDEZ.keys()))
-    modelo_fefco = st.selectbox("Modelo FEFCO", ["0200 (Meia Maleta)", "0201 (Maleta)", "0427 (Corte e Vinco)"])
+    st.header("1. Seleção de Material")
     
-    # Busca automática de dados
-    dados_chapa = TABELA_FERNANDEZ[chapa_nome]
-    onda_ref = dados_chapa["onda"]
-    preco_m2_base = dados_chapa["preco"]
+    # PASSO 1: ONDA
+    onda_selecionada = st.selectbox("Selecione a Onda", list(DADOS_MATERIAIS.keys()))
     
-    # Busca parâmetros técnicos do .par
-    parametros = CONFIG_TECNICA[onda_ref]
-    d = parametros["d"]
-    gl = parametros["gl"]
+    # PASSO 2: PAPEL (Baseado na Onda)
+    opcoes_papel = list(DADOS_MATERIAIS[onda_selecionada].keys())
+    papel_selecionado = st.selectbox("Selecione o Papel/Qualidade", opcoes_papel)
+    
+    # PASSO 3: COLUNA (Informativo e vinculado)
+    dados_final = DADOS_MATERIAIS[onda_selecionada][papel_selecionado]
+    coluna_min = dados_final["coluna"]
+    preco_m2 = dados_final["preco"]
+    
+    st.success(f"Resistência Coluna: {coluna_min} Kgf/cm")
+    
+    st.header("2. Modelo FEFCO")
+    modelo = st.selectbox("Selecione o Modelo", [
+        "0200 (Meia Maleta)", 
+        "0201 (Maleta Comum)", 
+        "0202 (Aba Sobreposta Parcial)", 
+        "0203 (Aba Total - FOL)", 
+        "0204 (Abas que se encontram no centro)",
+        "0427 (Corte e Vinco - Maleta de Envio)",
+        "0421 (Corte e Vinco - Tray)",
+        "0300 (Telescópica - Fundo)",
+        "0901 (Acessório - Almofada/Pad)"
+    ])
 
-# --- ENTRADA DE DIMENSÕES ---
-st.subheader(f"Medidas Internas para: {chapa_nome}")
-col1, col2, col3, col4 = st.columns(4)
-L = col1.number_input("Comprimento (L) mm", value=300, min_value=10)
-W = col2.number_input("Largura (W) mm", value=200, min_value=10)
-H = col3.number_input("Altura (H) mm", value=150, min_value=10)
-qtd = col4.number_input("Quantidade", value=500, step=100, min_value=1)
+# Parâmetros Geométricos
+d = CONFIG_TECNICA[onda_selecionada]["d"]
+gl = CONFIG_TECNICA[onda_selecionada]["gl"]
+
+# --- ENTRADA DE MEDIDAS ---
+st.subheader(f"Medidas Internas (mm) - {papel_selecionado}")
+c1, c2, c3, c4 = st.columns(4)
+L = c1.number_input("Comprimento (L)", value=300)
+W = c2.number_input("Largura (W)", value=200)
+H = c3.number_input("Altura (H)", value=150)
+qtd = c4.number_input("Quantidade", value=500, step=100)
 
 # =========================================================
-# 4. MOTOR DE CÁLCULO (PRECISÃO 95%+)
+# 4. MOTOR DE CÁLCULO AMPLIADO (FEFCO LIBRARY)
 # =========================================================
-# Lógica baseada em padrões FEFCO com correções de espessura da New Age
-if "0200" in modelo_fefco:
-    # Meia Maleta: Largura da chapa considera apenas 1 aba (W/2)
-    bL = (2 * L) + (2 * W) + gl
-    bW = H + (W / 2) + d
-elif "0201" in modelo_fefco:
-    # Maleta Padrão: Largura considera abas superiores e inferiores (W)
-    bL = (2 * L) + (2 * W) + gl
-    bW = H + W + d
-elif "0427" in modelo_fefco:
-    # Corte e Vinco Complexo (Bandeja com orelhas de travamento)
-    bL = L + (4 * H) + (6 * d)
-    bW = (2 * W) + (3 * H) + 20 
-
-# Cálculos de Área e Financeiro
-area_unitaria_m2 = (bL * bW) / 1_000_000
-custo_chapa_unid = area_unitaria_m2 * preco_m2_base
-# FATOR 100: Preço de Venda = Custo da Chapa x 2 (Markup de 100%)
-preco_venda_unit = custo_chapa_unid * 2.0
-
-# --- RESULTADOS ---
-st.divider()
-res1, res2, res3 = st.columns(3)
-
-with res1:
-    st.metric("PREÇO DE VENDA UNIT.", f"R$ {preco_venda_unit:.2f}")
-    st.write(f"**Total do Pedido:** R$ {preco_venda_unit * qtd:,.2f}")
-
-with res2:
-    st.info(f"**Chapa Aberta (Blank)**\n\n**{bL:.0f} x {bW:.0f} mm**")
-    st.write(f"Área Unitária: {area_unitaria_m2:.4f} m²")
-
-with res3:
-    st.success(f"**Ficha Técnica**")
-    st.write(f"**Onda:** {onda_ref} ({d}mm)")
-    st.write(f"**Orelha de Cola:** {gl}mm")
-    st.write(f"**Custo Base $m^2$:** R$ {preco_m2_base:.3f}")
-
-st.markdown("---")
-st.caption("New Age Embalagens - Cálculos baseados em Heidelberg Package Designer Suite")
+if "0200" in modelo:
+    bL, bW = (2*L + 2*W + gl), (H + W/2 + d)
+elif "0201" in modelo:
+    bL, bW = (2*L + 2*W + gl), (H + W + d)
+elif "0202" in modelo:
+    bL, bW = (2*L + 2*W + gl), (H + W + d + 30) # Sobreposição de 30mm
+elif "0203" in modelo:
+    bL, bW = (2*L + 2*W + gl), (H + 2*W + d) # Aba Total (Overlap Total)
+elif "0204" in modelo:
+    bL, bW = (2*L + 2*W + gl), (H + W + d)
