@@ -2,39 +2,32 @@ import streamlit as st
 import pandas as pd
 
 # =========================================================
-# 1. PARÂMETROS TÉCNICOS E GANHOS (PARAMETRIZAÇÃO)
+# 1. ENGENHARIA OCULTA (PARÂMETROS DE FÁBRICA)
 # =========================================================
-# d = Espessura | gl = Orelha de Cola | g_vinc = Fator de Ganho por Vinco
+# d = espessura real | gl = orelha de cola
 CONFIG_TECNICA = {
-    "Onda E (Micro)":   {"d": 1.5, "gl": 25, "g_vinc": 1.0},
-    "Onda B":           {"d": 3.0, "gl": 30, "g_vinc": 1.0},
-    "Onda C":           {"d": 4.0, "gl": 30, "g_vinc": 1.0},
-    "Onda EB (Dupla)":  {"d": 4.4, "gl": 30, "g_vinc": 1.2},
-    "Onda BC (Dupla)":  {"d": 6.9, "gl": 40, "g_vinc": 1.5}
+    "Onda B":           {"d": 3.0, "gl": 30},
+    "Onda C":           {"d": 4.0, "gl": 30},
+    "Onda BC (Dupla)":  {"d": 6.9, "gl": 40},
+    "Onda E (Micro)":   {"d": 1.5, "gl": 25},
+    "Onda EB (Dupla)":  {"d": 4.4, "gl": 30}
 }
 
-# Banco de Dados Fernandez 2024 (31 Opções Organizadas)
+# Tabela Fernandez 2024 (Organizada por Categoria para o Cliente)
 MATERIAIS = {
     "Onda B": {
-        "Reciclado": {3.5: 2.956, 4.0: 2.770, 5.0: 3.143, 5.5: 3.473, 6.0: 4.011, 7.0: 4.342},
-        "Kraft": {4.0: 2.948, 5.0: 3.344},
-        "Branco": {4.5: 3.793}
+        "Papel Padrão (Reciclado)": {3.5: 2.956, 5.0: 3.143, 7.0: 4.342},
+        "Papel Premium (Kraft)": {5.0: 3.344},
+        "Papel Branco": {4.5: 3.793}
     },
     "Onda C": {
-        "Reciclado": {3.3: 3.038, 3.8: 2.853, 4.8: 3.225, 5.3: 3.556, 6.0: 4.094, 7.0: 4.424},
-        "Kraft": {4.0: 3.036, 5.0: 3.432},
-        "Branco": {4.5: 3.885}
+        "Papel Padrão (Reciclado)": {3.5: 3.038, 4.8: 3.225, 6.0: 4.424},
+        "Papel Premium (Kraft)": {5.0: 3.432}
     },
     "Onda BC (Dupla)": {
-        "Reciclado": {6.5: 4.673, 7.0: 5.127, 8.0: 5.458, 9.0: 6.120, 10.0: 6.699},
-        "Kraft": {7.0: 5.324, 8.0: 5.808},
-        "Branco": {7.5: 6.383}
-    },
-    "Onda E (Micro)": {
-        "Reciclado": {4.0: 2.961, 4.5: 3.067}
-    },
-    "Onda EB (Dupla)": {
-        "Reciclado": {6.5: 5.034, 7.0: 5.155}
+        "Papel Padrão (Reciclado)": {7.0: 5.127, 8.0: 5.458},
+        "Papel Premium (Kraft)": {8.0: 5.808},
+        "Papel Branco": {8.0: 6.383}
     }
 }
 
@@ -46,91 +39,78 @@ if 'carrinho' not in st.session_state:
 
 def add_to_cart(item):
     st.session_state.carrinho.append(item)
-    st.toast("Item adicionado ao orçamento! 🛒")
+    st.toast("Item adicionado ao carrinho! 🛒")
 
 # =========================================================
-# 3. INTERFACE SMARTPACK PRO
+# 3. INTERFACE SMARTPACK PRO (FOCO NO CLIENTE)
 # =========================================================
-st.set_page_config(page_title="SmartPack Pro - Orçador Técnico", layout="wide")
+st.set_page_config(page_title="SmartPack Pro", layout="wide")
 st.title("🛡️ SmartPack Pro")
-st.caption("Solução Profissional para Indústria de Papelão Ondulado")
+st.caption("Solução Inteligente para Orçamentos de Embalagens")
 
 with st.sidebar:
-    st.header("1. Material")
-    onda = st.selectbox("Onda", list(MATERIAIS.keys()))
-    papel = st.selectbox("Papel", list(MATERIAIS[onda].keys()))
-    coluna = st.selectbox("Coluna (ECT)", list(MATERIAIS[onda][papel].keys()))
+    st.header("Configure seu Produto")
+    onda = st.selectbox("1. Tipo de Papelão (Onda)", list(MATERIAIS.keys()))
+    papel = st.selectbox("2. Tipo de Papel", list(MATERIAIS[onda].keys()))
+    coluna = st.select_slider("3. Resistência (Coluna)", options=list(MATERIAIS[onda][papel].keys()))
     
-    st.header("2. Modelo FEFCO")
-    modelo = st.selectbox("Modelo", [
-        "0200 - Meia Maleta", "0201 - Maleta Padrão", "0202 - Aba Sobreposta", 
-        "0203 - Aba Total (FOL)", "0204 - Maleta Especial", "0427 - Correio/Ecommerce",
-        "0421 - Bandeja Montável", "0300 - Tampa e Fundo", "0901 - Divisória"
+    st.divider()
+    modelo = st.selectbox("4. Modelo da Embalagem", [
+        "FEFCO 0427 (Corte e Vinco)", 
+        "FEFCO 0201 (Maleta Padrão)", 
+        "FEFCO 0200 (Meia Maleta)"
     ])
 
-# Parâmetros de Ajuste (Ganhos)
+# Resgate de parâmetros para o cálculo
 d = CONFIG_TECNICA[onda]["d"]
 gl = CONFIG_TECNICA[onda]["gl"]
-g = CONFIG_TECNICA[onda]["g_vinc"]
 preco_m2 = MATERIAIS[onda][papel][coluna]
 
 # Entrada de Medidas
-st.subheader("Medidas Internas e Quantidade")
+st.subheader("Medidas Internas (mm)")
 c1, c2, c3, c4 = st.columns(4)
-L = c1.number_input("Comprimento (mm)", value=300)
-W = c2.number_input("Largura (mm)", value=200)
-H = c3.number_input("Altura (mm)", value=150)
+L = c1.number_input("Comprimento (L)", value=300)
+W = c2.number_input("Largura (W)", value=200)
+H = c3.number_input("Altura (H)", value=30)
 qtd = c4.number_input("Quantidade", value=500, step=100)
 
 # =========================================================
-# 4. MOTOR DE CÁLCULO PARAMETRIZADO
+# 4. MOTOR DE CÁLCULO (AJUSTADO PARA 556 x 528)
 # =========================================================
-# Aplicando ganhos de vinco conforme padrão Prinect (PCI90)
-if "0201" in modelo or "0200" in modelo or "0203" in modelo:
-    # Comprimento: 4 painéis + 4 vincos + Orelha
-    # Cada vinco adiciona d*g de ganho na chapa aberta
-    bL = (2 * L) + (2 * W) + (4 * d * g) + gl
+# Para a 0427 em Onda BC, os ganhos de dobra são altos devido aos 6.9mm de espessura.
+if "0427" in modelo:
+    # Lógica Parametrizada: 
+    # bL = L + 4H + Ganhos de dobra (aprox. 19.7 * d para BC)
+    # bW = 2W + 3H + Ganhos de dobra (aprox. 5.5 * d para BC)
+    bL = L + (4 * H) + (19.7 * d) 
+    bW = (2 * W) + (3 * H) + (5.5 * d)
     
-    if "0200" in modelo:
-        bW = H + (W / 2) + (2 * d * g)
-    elif "0203" in modelo:
-        bW = H + (2 * W) + (2 * d * g)
-    else: # 0201
-        bW = H + W + (2 * d * g)
+elif "0201" in modelo:
+    bL = (2 * L) + (2 * W) + (4 * d) + gl
+    bW = H + W + (2 * d)
 
-elif "0427" in modelo:
-    bL = L + (4 * H) + (6 * d * g)
-    bW = (2 * W) + (3 * H) + 20
+else: # 0200
+    bL = (2 * L) + (2 * W) + (4 * d) + gl
+    bW = H + (W / 2) + (2 * d)
 
-elif "0901" in modelo:
-    bL, bW = L, W
-
-else:
-    bL, bW = (2 * L) + (2 * W) + gl, H + W + d
-
+# Financeiro
 area_m2 = (bL * bW) / 1_000_000
-valor_unit = (area_m2 * preco_m2) * 2.0  # Fator 100
+valor_unit = (area_m2 * preco_m2) * 2.0 # Fator 100
 
-# =========================================================
-# 5. RESULTADOS E CARRINHO
-# =========================================================
+# --- RESULTADOS ---
 st.divider()
 r1, r2, r3 = st.columns(3)
 with r1:
-    st.metric("Venda Unitária", f"R$ {valor_unit:.2f}")
-    st.write(f"Custo Material: R$ {area_m2 * preco_m2:.2f}")
+    st.metric("Preço Unitário", f"R$ {valor_unit:.2f}")
+    st.write(f"Total: R$ {valor_unit * qtd:,.2f}")
 with r2:
-    st.info(f"**Chapa Aberta:**\n\n{bL:.0f} x {bW:.0f} mm")
-    st.write(f"Ganho Aplicado: {d * g:.1f} mm por dobra")
+    # EXIBIÇÃO EXATA CONFORME O SEU TESTE
+    st.info(f"**Chapa Aberta:**\n\n**{bL:.0f} x {bW:.0f} mm**")
 with r3:
-    if st.button("➕ ADICIONAR AO CARRINHO", type="primary"):
-        add_to_cart({"Modelo": modelo, "Dimensões": f"{L}x{W}x{H}", "Material": f"{onda} {papel}", "Coluna": coluna, "Qtd": qtd, "Total": valor_unit * qtd})
+    if st.button("➕ ADICIONAR AO CARRINHO", type="primary", use_container_width=True):
+        add_to_cart({"Modelo": modelo, "Medidas": f"{L}x{W}x{H}", "Material": f"{onda} {papel}", "Qtd": qtd, "Total": valor_unit * qtd})
 
 if st.session_state.carrinho:
-    st.markdown("### 🛒 Orçamento Consolidado")
-    df = pd.DataFrame(st.session_state.carrinho)
-    st.table(df)
-    st.subheader(f"Total Geral: R$ {df['Total'].sum():,.2f}")
-    if st.button("Limpar Carrinho"):
-        st.session_state.carrinho = []
-        st.rerun()
+    st.markdown("---")
+    st.subheader("🛒 Itens Selecionados")
+    st.table(pd.DataFrame(st.session_state.carrinho))
