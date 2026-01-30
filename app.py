@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import math
+import os # Biblioteca para ver arquivos do sistema
 
 # =========================================================
-# 1. SMARTPACK BACKEND V8 (AUTOMÁTICO)
+# 1. ENGINE & CALIBRAÇÃO (V9 - MANTIDO)
 # =========================================================
 class CalibrationEngine:
     @staticmethod
@@ -15,17 +16,22 @@ class CalibrationEngine:
 
 class SmartPackBackend:
     def __init__(self, csv_path='formulas_smartpack.csv'):
-        try:
-            self.df = pd.read_csv(csv_path, delimiter=';', dtype={'Modelo': str})
-            self.df['Modelo'] = self.df['Modelo'].str.lstrip('0')
-        except FileNotFoundError: pass
+        # Tenta ler o arquivo de fórmulas
+        if os.path.exists(csv_path):
+            try:
+                self.df = pd.read_csv(csv_path, delimiter=';', dtype={'Modelo': str})
+                self.df['Modelo'] = self.df['Modelo'].str.lstrip('0')
+            except: pass
+        else:
+            self.df = pd.DataFrame() # Cria vazio se falhar
 
     def get_available_models(self):
-        if not hasattr(self, 'df'): return []
+        if self.df.empty: return []
         return sorted(self.df['Modelo'].unique())
 
     def _get_engine_variables(self, modelo, L, W, H, d):
         modelo = str(modelo).lstrip('0')
+        if self.df.empty: return None
         df_model = self.df[self.df['Modelo'] == modelo]
         if df_model.empty: return None
 
@@ -91,46 +97,76 @@ class SmartPackBackend:
             else: return Lss + (2 * Wall_H), Wss + (3 * Wall_H), "Estimado"
 
 # =========================================================
-# 2. CARREGAMENTO AUTOMÁTICO (SEM UPLOAD MANUAL)
+# 2. CONFIGURAÇÃO E CARGA SEGURA (V9)
 # =========================================================
 st.set_page_config(page_title="SmartPack Enterprise", layout="wide")
 
 @st.cache_resource
-def load_engine_v8():
+def load_engine_v9():
     return SmartPackBackend('formulas_smartpack.csv')
 
-engine = load_engine_v8()
+engine = load_engine_v9()
 
 if 'carrinho' not in st.session_state: st.session_state.carrinho = []
 
 st.title("🏭 SmartPack Enterprise")
 
-# --- LEITURA AUTOMÁTICA DA TABELA DE PREÇOS ---
+# --- FUNÇÃO DE DIAGNÓSTICO E LEITURA ---
 @st.cache_data
-def load_prices():
-    try:
-        # Tenta ler CSV com ponto e vírgula
-        df = pd.read_csv('materiais.csv', sep=';')
-        if len(df.columns) < 2:
-            df = pd.read_csv('materiais.csv', sep=',')
-        return df
-    except FileNotFoundError:
-        return None
+def load_prices_safe():
+    # Procura arquivos com nomes parecidos para evitar erro de .txt oculto
+    arquivos_pasta = os.listdir()
+    
+    arquivo_encontrado = None
+    for f in arquivos_pasta:
+        if 'materiais' in f.lower() and 'csv' in f.lower():
+            arquivo_encontrado = f
+            break
+            
+    if arquivo_encontrado:
+        try:
+            df = pd.read_csv(arquivo_encontrado, sep=';')
+            if len(df.columns) < 2: df = pd.read_csv(arquivo_encontrado, sep=',')
+            return df, arquivo_encontrado
+        except:
+            return None, "Erro Leitura"
+    
+    # Se não achou nada, retorna None
+    return None, "Não Encontrado"
 
-df_materiais = load_prices()
+df_materiais, status_arquivo = load_prices_safe()
 
-# --- VERIFICA SE O ARQUIVO EXISTE NO GITHUB ---
-if df_materiais is None:
-    st.error("🚨 Erro de Configuração!")
-    st.warning("O arquivo `materiais.csv` não foi encontrado no GitHub.")
-    st.info("Por favor, suba o arquivo `materiais.csv` para a mesma pasta do `app.py`.")
-    st.stop()
-
-# --- BARRA LATERAL AUTOMÁTICA ---
+# --- BARRA LATERAL ---
 with st.sidebar:
     st.header("⚙️ Configuração")
-    st.success("Tabela de Preços: ✅ Conectada")
     
+    # FERRAMENTA DE DIAGNÓSTICO (Vai aparecer na sua tela!)
+    if df_materiais is None:
+        st.error(f"⚠️ Status: {status_arquivo}")
+        st.warning("Usando Tabela PADRÃO (Modo Segurança)")
+        
+        # Mostra o que o Python está vendo na pasta
+        st.markdown("---")
+        st.caption("🕵️‍♂️ Diagnóstico de Arquivos:")
+        arquivos = os.listdir()
+        for f in arquivos:
+            if 'csv' in f or 'py' in f:
+                st.code(f) # Lista os arquivos reais
+        st.markdown("---")
+        
+        # Tabela Padrão (Fallback)
+        dados_padrao = {
+            'Onda': ['B', 'C', 'BC'],
+            'Papel': ['Reciclado', 'Kraft', 'Duplo'],
+            'Gramatura': [380, 400, 700],
+            'Espessura': [3.0, 4.0, 6.9],
+            'Coluna': [4.0, 4.5, 8.0],
+            'Preco_m2': [2.77, 2.85, 5.45]
+        }
+        df_materiais = pd.DataFrame(dados_padrao)
+    else:
+        st.success(f"✅ Tabela Carregada: `{status_arquivo}`")
+
     # Filtros em Cascata
     ondas = df_materiais['Onda'].unique()
     onda_sel = st.selectbox("1. Onda", ondas)
@@ -143,7 +179,6 @@ with st.sidebar:
     colunas = df_final['Coluna'].unique()
     coluna_sel = st.selectbox("3. Resistência", colunas)
     
-    # Pega dados técnicos da linha escolhida
     material = df_final[df_final['Coluna'] == coluna_sel].iloc[0]
     espessura_real = float(material['Espessura'])
     preco_base = float(material['Preco_m2'])
@@ -155,9 +190,7 @@ with st.sidebar:
     lista = [m for m in populares if m in modelos] + [m for m in modelos if m not in populares]
     modelo_visual = st.selectbox("Modelo", lista, format_func=lambda x: f"FEFCO {x.zfill(4)}")
 
-# =========================================================
-# 3. ÁREA DE CÁLCULO
-# =========================================================
+# --- AREA PRINCIPAL ---
 col1, col2 = st.columns([1, 2])
 
 with col1:
