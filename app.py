@@ -3,16 +3,14 @@ import pandas as pd
 import math
 
 # =========================================================
-# 1. SMARTPACK BACKEND V5 (MANTIDO - CALIBRAÇÃO EXATA)
+# 1. SMARTPACK BACKEND V8 (AUTOMÁTICO)
 # =========================================================
 class CalibrationEngine:
     @staticmethod
     def get_factors(modelo, d):
         fam = str(modelo)[0]
-        if fam in ['2', '5', '6', '7']: # Tubulares
-            return {'C90': 0.5, 'C180': 1.0*d, 'HC90': 1.7*d, 'Glue': 0.5, 'Slot': d+1.0, 'Profile': 'Tubular'}
-        elif fam in ['3', '4']: # Tabuleiros
-            return {'C90': 1.0*d, 'C180': 2.0*d, 'HC90': 1.0*d, 'Glue': 1.0*d, 'Slot': d+2.0, 'Profile': 'Tabuleiro'}
+        if fam in ['2', '5', '6', '7']: return {'C90': 0.5, 'C180': 1.0*d, 'HC90': 1.7*d, 'Glue': 0.5, 'Slot': d+1.0, 'Profile': 'Tubular'}
+        elif fam in ['3', '4']: return {'C90': 1.0*d, 'C180': 2.0*d, 'HC90': 1.0*d, 'Glue': 1.0*d, 'Slot': d+2.0, 'Profile': 'Tabuleiro'}
         else: return {'C90': 0.5*d, 'C180': d, 'HC90': d, 'Glue': 0, 'Slot': d, 'Profile': 'Generico'}
 
 class SmartPackBackend:
@@ -20,7 +18,7 @@ class SmartPackBackend:
         try:
             self.df = pd.read_csv(csv_path, delimiter=';', dtype={'Modelo': str})
             self.df['Modelo'] = self.df['Modelo'].str.lstrip('0')
-        except FileNotFoundError: return
+        except FileNotFoundError: pass
 
     def get_available_models(self):
         if not hasattr(self, 'df'): return []
@@ -78,7 +76,6 @@ class SmartPackBackend:
             elif modelo == '203': Flap_Top = Wss - d
             Blank_Y = Flap_Top + Hss + vars_eng.get('FH_B', Flap_Top)
             return Blank_X, Blank_Y, k['Profile']
-
         elif modelo == '427':
             HssY = vars_eng.get('HssY', H + 2*d)
             FH1 = HssY + (1.5 * d)
@@ -88,168 +85,111 @@ class SmartPackBackend:
             Ear = HssY + 14.0
             Blank_Y = Ear + PH + Lss + PH + Ear
             return Blank_Y, Blank_X, "0427 Gold"
-
         else:
             Wall_H = vars_eng.get('Hss', H + d)
-            if modelo.startswith('3'):
-                return Lss + (2 * Wall_H), Wss + (2 * Wall_H), k['Profile']
-            else:
-                return Lss + (2 * Wall_H), Wss + (3 * Wall_H), "Estimado"
+            if modelo.startswith('3'): return Lss + (2 * Wall_H), Wss + (2 * Wall_H), k['Profile']
+            else: return Lss + (2 * Wall_H), Wss + (3 * Wall_H), "Estimado"
 
 # =========================================================
-# 2. INTERFACE E CARREGAMENTO DE DADOS
+# 2. CARREGAMENTO AUTOMÁTICO (SEM UPLOAD MANUAL)
 # =========================================================
 st.set_page_config(page_title="SmartPack Enterprise", layout="wide")
 
-# MUDANÇA AQUI: Mudei o nome para 'load_engine_v7'
-# Isso obriga o Streamlit a esquecer o cache antigo e ler o código novo.
 @st.cache_resource
-def load_engine_v7():
+def load_engine_v8():
     return SmartPackBackend('formulas_smartpack.csv')
 
-engine = load_engine_v7() # Atualize a chamada aqui também
-
-
+engine = load_engine_v8()
 
 if 'carrinho' not in st.session_state: st.session_state.carrinho = []
 
 st.title("🏭 SmartPack Enterprise")
-st.markdown("---")
 
-# --- AREA DE GESTÃO (CARGA DE DADOS) ---
+# --- LEITURA AUTOMÁTICA DA TABELA DE PREÇOS ---
+@st.cache_data
+def load_prices():
+    try:
+        # Tenta ler CSV com ponto e vírgula
+        df = pd.read_csv('materiais.csv', sep=';')
+        if len(df.columns) < 2:
+            df = pd.read_csv('materiais.csv', sep=',')
+        return df
+    except FileNotFoundError:
+        return None
+
+df_materiais = load_prices()
+
+# --- VERIFICA SE O ARQUIVO EXISTE NO GITHUB ---
+if df_materiais is None:
+    st.error("🚨 Erro de Configuração!")
+    st.warning("O arquivo `materiais.csv` não foi encontrado no GitHub.")
+    st.info("Por favor, suba o arquivo `materiais.csv` para a mesma pasta do `app.py`.")
+    st.stop()
+
+# --- BARRA LATERAL AUTOMÁTICA ---
 with st.sidebar:
-    st.header("📂 Base de Dados")
+    st.header("⚙️ Configuração")
+    st.success("Tabela de Preços: ✅ Conectada")
     
-    # 1. Upload da Tabela de Materiais
-    uploaded_file = st.file_uploader("Carregar Tabela de Qualidades (CSV)", type="csv")
+    # Filtros em Cascata
+    ondas = df_materiais['Onda'].unique()
+    onda_sel = st.selectbox("1. Onda", ondas)
     
-    df_materiais = None
-    if uploaded_file is not None:
-        try:
-            df_materiais = pd.read_csv(uploaded_file, sep=';') # Tenta ponto e vírgula primeiro (Excel BR)
-            if len(df_materiais.columns) < 2: 
-                uploaded_file.seek(0)
-                df_materiais = pd.read_csv(uploaded_file, sep=',') # Tenta vírgula
-            st.success(f"✅ {len(df_materiais)} materiais carregados!")
-        except:
-            st.error("Erro ao ler CSV. Verifique o formato.")
-    else:
-        st.warning("⚠️ Por favor, suba o arquivo 'materiais.csv' para iniciar.")
-        st.info("Colunas esperadas: Onda, Papel, Gramatura, Espessura, Coluna, Preco_m2")
-        st.stop() # Para o código aqui até ter o arquivo
-
-    st.divider()
-    st.header("⚙️ Configuração do Pedido")
-
-    # 2. Filtros em Cascata (Onda -> Papel -> Coluna)
-    # Lista única de ondas disponíveis no CSV
-    ondas_disponiveis = df_materiais['Onda'].unique()
-    onda_sel = st.selectbox("1. Onda", ondas_disponiveis)
-    
-    # Filtra papéis dessa onda
     df_onda = df_materiais[df_materiais['Onda'] == onda_sel]
-    papeis_disponiveis = df_onda['Papel'].unique()
-    papel_sel = st.selectbox("2. Qualidade do Papel", papeis_disponiveis)
+    papeis = df_onda['Papel'].unique()
+    papel_sel = st.selectbox("2. Papel", papeis)
     
-    # Filtra colunas desse papel
     df_final = df_onda[df_onda['Papel'] == papel_sel]
-    colunas_disponiveis = df_final['Coluna'].unique()
-    coluna_sel = st.selectbox("3. Resistência (Coluna)", colunas_disponiveis)
+    colunas = df_final['Coluna'].unique()
+    coluna_sel = st.selectbox("3. Resistência", colunas)
     
-    # --- RECUPERAÇÃO DOS DADOS TÉCNICOS ---
-    # Pega a linha exata da tabela que o usuário escolheu
-    material_escolhido = df_final[df_final['Coluna'] == coluna_sel].iloc[0]
-    
-    espessura_real = float(material_escolhido['Espessura'])
-    preco_base = float(material_escolhido['Preco_m2'])
-    gramatura = material_escolhido['Gramatura']
+    # Pega dados técnicos da linha escolhida
+    material = df_final[df_final['Coluna'] == coluna_sel].iloc[0]
+    espessura_real = float(material['Espessura'])
+    preco_base = float(material['Preco_m2'])
+    gramatura = material['Gramatura']
     
     st.divider()
-    st.header("📐 Modelo")
-    modelos_disponiveis = engine.get_available_models()
-    populares = ['201', '427', '200', '203', '300', '711']
-    lista_final = [m for m in populares if m in modelos_disponiveis] + [m for m in modelos_disponiveis if m not in populares]
-    
-    modelo_visual = st.selectbox("Selecione o Modelo", lista_final, format_func=lambda x: f"FEFCO {x.zfill(4)}")
+    modelos = engine.get_available_models()
+    populares = ['201', '427', '200', '203', '711']
+    lista = [m for m in populares if m in modelos] + [m for m in modelos if m not in populares]
+    modelo_visual = st.selectbox("Modelo", lista, format_func=lambda x: f"FEFCO {x.zfill(4)}")
 
 # =========================================================
-# 3. ÁREA DO CLIENTE VS FÁBRICA
+# 3. ÁREA DE CÁLCULO
 # =========================================================
-
 col1, col2 = st.columns([1, 2])
 
 with col1:
-    st.subheader("📝 Medidas Internas")
+    st.subheader("Medidas")
     L = st.number_input("Comprimento (mm)", value=300)
     W = st.number_input("Largura (mm)", value=200)
     H = st.number_input("Altura (mm)", value=100)
     qtd = st.number_input("Quantidade", value=1000, step=100)
-    
-    st.markdown("---")
-    st.caption("Resumo do Material:")
-    st.text(f"Onda: {onda_sel} ({espessura_real}mm)\nPapel: {papel_sel}\nGramatura: {gramatura} g/m²")
+    st.caption(f"Material: {onda_sel} | {gramatura}g | {coluna_sel}kg")
 
-# CÁLCULO
 bL, bW, perfil = engine.calcular_blank(modelo_visual, L, W, H, espessura_real)
 area_m2 = (bL * bW) / 1_000_000
-custo_material = area_m2 * preco_base
-preco_venda = custo_material * 2.0 # Margem de 100%
+preco_venda = (area_m2 * preco_base) * 2.0 
 
 with col2:
-    # ABAS PARA VISÃO DIFERENTE
-    tab_cliente, tab_fabrica = st.tabs(["👤 Visão do Cliente (Orçamento)", "🏭 Visão da Fábrica (Produção)"])
+    tab_cli, tab_fab = st.tabs(["Orçamento", "Fábrica"])
     
-    with tab_cliente:
-        st.subheader("💰 Orçamento Final")
+    with tab_cli:
         c1, c2 = st.columns(2)
-        c1.metric("Preço Unitário", f"R$ {preco_venda:.2f}")
-        c2.metric("Total do Pedido", f"R$ {preco_venda * qtd:,.2f}")
-        
-        st.success(f"**Produto:** Caixa FEFCO {modelo_visual} em {papel_sel}")
-        st.info("Este valor inclui material, produção e impostos estimados.")
-        
-        if st.button("🛒 Adicionar ao Pedido", type="primary", use_container_width=True):
-            st.session_state.carrinho.append({
-                "Modelo": modelo_visual,
-                "Dimensões": f"{L}x{W}x{H}",
-                "Material": f"{onda_sel} - {coluna_sel} Coluna",
-                "Qtd": qtd,
-                "Total": preco_venda * qtd
-            })
-            st.toast("Adicionado com sucesso!")
+        c1.metric("Unitário", f"R$ {preco_venda:.2f}")
+        c2.metric("Total", f"R$ {preco_venda * qtd:,.2f}")
+        if st.button("🛒 Comprar"):
+            st.session_state.carrinho.append({"Modelo": modelo_visual, "Total": preco_venda*qtd})
+            st.toast("Sucesso!")
 
-    with tab_fabrica:
-        st.subheader("⚙️ Ordem de Produção Técnica")
-        st.warning("Área Restrita - Dados para Programação de Máquina")
-        
+    with tab_fab:
         st.markdown(f"""
-        ### 1. Especificação da Chapa (Papelão)
-        | Parâmetro | Valor |
-        | :--- | :--- |
-        | **Onda** | {onda_sel} (Espessura: {espessura_real}mm) |
-        | **Composição** | {papel_sel} |
-        | **Gramatura** | {gramatura} g/m² |
-        | **Coluna (Resistência)** | **{coluna_sel} kgf** |
-        
-        ### 2. Dimensões de Corte (Blank)
-        | Dimensão | Valor Calculado |
-        | :--- | :--- |
-        | **Largura da Chapa** | **{bL:.1f} mm** |
-        | **Comprimento da Chapa** | **{bW:.1f} mm** |
-        | **Área Unitária** | {area_m2:.4f} m² |
-        | **Perfil de Vinco** | {perfil} |
+        **Ordem de Produção:**
+        - Modelo: FEFCO {modelo_visual} ({perfil})
+        - Blank: **{bL:.1f} x {bW:.1f} mm**
+        - Material: Onda {onda_sel} (Esp: {espessura_real}mm)
         """)
-        
-        st.code(f"""
-        CODIGO_MAQUINA: {modelo_visual}
-        BLANK_X: {bL:.1f}
-        BLANK_Y: {bW:.1f}
-        ESPESSURA: {espessura_real}
-        COLUNA: {coluna_sel}
-        """, language="yaml")
 
-# Carrinho no rodapé
 if st.session_state.carrinho:
-    st.markdown("---")
-    st.subheader("Resumo dos Pedidos")
-    st.dataframe(pd.DataFrame(st.session_state.carrinho), use_container_width=True)
+    st.dataframe(pd.DataFrame(st.session_state.carrinho))
